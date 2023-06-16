@@ -1,0 +1,310 @@
+---
+title: "Untitled"
+author: "Yuliya Zubak"
+date: "05/03/2020"
+output: html_document
+---
+Behaviour to PRS  and to thickness
+with and without gender
+direct effect
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(emmeans)
+
+setwd('/Users/Administrator/Desktop/R/YZ-20191122T154314Z-001/YZ') #move here so script works
+
+```
+#Loading
+```{r}
+HCP <- read.delim("HCP_sample_ref.txt", stringsAsFactors = FALSE)
+genetic1 <- read.csv("scores_frontal_cortex_predicted_expression.csv",header=T,stringsAsFactors=F, row.names = 1)
+imaging <- read.csv("unrestricted_amymiles_11_18_2019_13_10_13.csv",stringsAsFactors=FALSE)
+clinical <- read.csv("EDITED_behavioral_data.csv",header=T,stringsAsFactors=F)
+AGE <- read.csv("HCP_behavioral_data.csv",header=T,stringsAsFactors=F)
+family <- read.csv("HCP_subjects.csv",header=T,stringsAsFactors=F)
+
+genetic <- merge(HCP[,c(4,5)],genetic1,by.x='SAMPLE_ID', by.y='IID')
+colnames(genetic)[2] <- "SID"
+```
+
+```{r}
+data <- merge(genetic[,c(2,3,4)],clinical,by.x='SID',by.y='ID')
+data <- merge(data,imaging,by.x='SID',by.y='Subject')
+data <- merge(family[1], data, by='SID')
+
+```
+
+##Independent Variable (X)- Gender
+
+```{r}
+regressors <- data[1:6]
+
+sample <- subset(regressors,Race=='White')
+sample <- subset(sample,Ethnicity=='Not Hispanic/Latino')
+sample <- sample[,-c(5:6)]
+age <- AGE[1:2]
+sample <- merge(sample,age, by.x = 'SID', by.y = 'Subject' )
+```
+```{r}
+AGE <- c(0)
+age<-c(0)
+clinical<- c(0)
+imaging <-c(0)
+HCP <-c(0)
+genetic<-c(0)
+genetic1<-c(0)
+
+```
+##Moderating Variable (W)- Score
+```{r}
+thickness <- data[,c(1,11,9,10,12,13,77:144)]
+test.thickness <- merge(sample,thickness,by='SID')
+depression <- data[,c(1,11,9,10,12,13)]
+test.depression <- merge(sample,depression,by='SID')
+```
+
+#PRS + predepressive
+```{r}
+test.depression$Gender <- as.factor(test.depression$Gender)
+test.depression <- within(test.depression, Gender <- relevel(Gender, ref = 'F'))
+
+
+Dep <- matrix(,ncol = 7)
+colnames(Dep)<- c("Pre-Depressive Metric","intercept t-val","intercept pval","depression t-val", "depression p-val", "depression*Gender t-val", "depression*Gender p-val")
+
+for(i in names(test.depression[7:10])){
+  var <- paste(i)
+  glm <- summary(glm(test.depression$female.weighted~test.depression[[i]]*test.depression$Gender))
+  #+test.depression$Age_in_Yrs
+    tval.intercept <- glm$coefficients[1,3]
+    pval.intercept <- glm$coefficients[1,4]
+    tval.depression <- glm$coefficients[2,3]
+    tval.depression.gender <- glm$coefficients[4,3]
+    pval.depression <- glm$coefficients[2,4]
+    pval.depression.gender <- glm$coefficients[4,4]
+    Dep <- rbind(Dep, c(var,round(tval.intercept,3), round(pval.intercept,3), round(tval.depression,3),pval.depression,round(tval.depression.gender,3),pval.depression.gender))}
+
+
+Dep<-as.data.frame(Dep[2:5, 1:7])
+
+fdfs<-Dep
+```
+
+```{r}
+test.depression$Gender <- as.factor(test.depression$Gender)
+test.depression <- within(test.depression, Gender <- relevel(Gender, ref = "M"))
+Dep2 <- matrix(,ncol = 7)
+colnames(Dep2)<- c("Pre-Depressive Metric","intercept t-val","intercept pval","depression t-val", "depression p-val", "depression*Gender t-val", "depression*Gender p-val")
+
+for(i in names(test.depression[7:10])){
+  var <- paste(i)
+  glm <- summary(glm(test.depression$female.weighted~test.depression[[i]]*test.depression$Gender))
+  #+test.depression$Age_in_Yrs
+    tval.intercept <- glm$coefficients[1,3]
+    pval.intercept <- glm$coefficients[1,4]
+    tval.depression <- glm$coefficients[2,3]
+    tval.depression.gender <- glm$coefficients[4,3]
+    pval.depression <- glm$coefficients[2,4]
+    pval.depression.gender <- glm$coefficients[4,4]
+    Dep2 <- rbind(Dep2, c(var,round(tval.intercept,3), round(pval.intercept,3), round(tval.depression,3),pval.depression,round(tval.depression.gender,3),pval.depression.gender))}
+
+Dep2<-as.data.frame(Dep2[2:5, 1:7])
+
+mdfs<-Dep2
+```
+```{r}
+test.depression$Gender <- as.factor(test.depression$Gender)
+test.depression <- within(test.depression, Gender <- relevel(Gender, ref = 'F'))
+
+
+Dep3 <- matrix(,ncol = 7)
+colnames(Dep3)<- c("Pre-Depressive Metric","intercept t-val","intercept pval","depression t-val", "depression p-val", "depression*Gender t-val", "depression*Gender p-val")
+
+for(i in names(test.depression[7:10])){
+  var <- paste(i)
+  glm <- summary(glm(test.depression$male.weighted~test.depression[[i]]*test.depression$Gender))
+  #+test.depression$Age_in_Yrs
+    tval.intercept <- glm$coefficients[1,3]
+    pval.intercept <- glm$coefficients[1,4]
+    tval.depression <- glm$coefficients[2,3]
+    tval.depression.gender <- glm$coefficients[4,3]
+    pval.depression <- glm$coefficients[2,4]
+    pval.depression.gender <- glm$coefficients[4,4]
+    Dep3 <- rbind(Dep3, c(var,round(tval.intercept,3), round(pval.intercept,3), round(tval.depression,3),pval.depression,round(tval.depression.gender,3),pval.depression.gender))}
+
+
+Dep3<-as.data.frame(Dep3[2:5, 1:7])
+
+fdms<-Dep3
+```
+
+```{r}
+test.depression$Gender <- as.factor(test.depression$Gender)
+test.depression <- within(test.depression, Gender <- relevel(Gender, ref = "M"))
+Dep4 <- matrix(,ncol = 7)
+colnames(Dep4)<- c("Pre-Depressive Metric","intercept t-val","intercept pval","depression t-val", "depression p-val", "depression*Gender t-val", "depression*Gender p-val")
+
+for(i in names(test.depression[7:10])){
+  var <- paste(i)
+  glm <- summary(glm(test.depression$male.weighted~test.depression[[i]]*test.depression$Gender))
+  #+test.depression$Age_in_Yrs
+    tval.intercept <- glm$coefficients[1,3]
+    pval.intercept <- glm$coefficients[1,4]
+    tval.depression <- glm$coefficients[2,3]
+    tval.depression.gender <- glm$coefficients[4,3]
+    pval.depression <- glm$coefficients[2,4]
+    pval.depression.gender <- glm$coefficients[4,4]
+    Dep4 <- rbind(Dep4, c(var,round(tval.intercept,3), round(pval.intercept,3), round(tval.depression,3),pval.depression,round(tval.depression.gender,3),pval.depression.gender))}
+
+Dep4<-as.data.frame(Dep4[2:5, 1:7])
+
+mdms<-Dep4
+```
+##write to excel
+```{r}
+library(xlsx)
+write.xlsx(fdfs, file="predepressivesymptoms_PRS.xlsx", sheetName="f data f score", row.names=FALSE)
+write.xlsx(mdfs, file="predepressivesymptoms_PRS.xlsx", sheetName="m data f score", append=TRUE, row.names=FALSE)
+write.xlsx(fdms, file="predepressivesymptoms_PRS.xlsx", sheetName="f data m score", append=TRUE, row.names=FALSE)
+write.xlsx(mdms, file="predepressivesymptoms_PRS.xlsx", sheetName="m data m score", append=TRUE, row.names=FALSE)
+```
+
+##thickness + depression (card / dsm)
+```{r}
+thickness = matrix(,ncol = 7)
+colnames(thickness) <- c("ROI", "tval.intercept", "pval.intercept", "fdr.intercept", "tval.thickness", "pval.thickness", "fdr.thickess")
+
+for(i in names(test.thickness[11:78])){
+  var <- paste(i)
+  glm <- summary(glm(test.thickness$DSM_Depr_Raw~test.thickness[[i]]+test.thickness$Gender+test.thickness$Age_in_Yrs))
+  tval.intercept <- glm$coefficients[1,3]
+  tval.thickness<- glm$coefficients[2,3]
+  pval.intercept <- glm$coefficients[1,4]
+  pval.thickness <- glm$coefficients[2,4]
+   fdr.intercept <- c(0)
+  fdr.thickness <- c(0)
+  thickness<- rbind(
+    thickness,
+    c(var,tval.intercept,
+      pval.intercept,
+      fdr.intercept, 
+      tval.thickness, 
+      pval.thickness, 
+      fdr.thickness))}
+
+thickness <-as.data.frame(thickness[2:69,1:7])
+fdr.intercept <- p.adjust((as.numeric(as.character(thickness[,3]))),method='fdr')
+fdr.thickness <- p.adjust((as.numeric(as.character(thickness[,6]))),method='fdr')
+
+thickness$`fdr.intercept` <- round (fdr.intercept,3)
+thickness$`fdr.thickness` <- round (fdr.thickness,3)
+
+DSM_Dep_Raw.thick <- thickness
+```
+
+```{r}
+thickness = matrix(,ncol = 7)
+colnames(thickness) <- c("ROI", "tval.intercept", "pval.intercept", "fdr.intercept", "tval.thickness", "pval.thickness", "fdr.thickess")
+
+for(i in names(test.thickness[11:78])){
+  var <- paste(i)
+  glm <- summary(glm(test.thickness$DSM_Depr_T~test.thickness[[i]]+test.thickness$Gender+test.thickness$Age_in_Yrs))
+  tval.intercept <- glm$coefficients[1,3]
+  tval.thickness<- glm$coefficients[2,3]
+  pval.intercept <- glm$coefficients[1,4]
+  pval.thickness <- glm$coefficients[2,4]
+   fdr.intercept <- c(0)
+  fdr.thickness <- c(0)
+  thickness<- rbind(
+    thickness,
+    c(var,tval.intercept,
+      pval.intercept,
+      fdr.intercept, 
+      tval.thickness, 
+      pval.thickness, 
+      fdr.thickness))}
+
+thickness <-as.data.frame(thickness[2:69,1:7])
+fdr.intercept <- p.adjust((as.numeric(as.character(thickness[,3]))),method='fdr')
+fdr.thickness <- p.adjust((as.numeric(as.character(thickness[,6]))),method='fdr')
+
+thickness$`fdr.intercept` <- round (fdr.intercept,3)
+thickness$`fdr.thickness` <- round (fdr.thickness,3)
+
+DSM_Dep_T.thick <- thickness
+```
+
+```{r}
+thickness = matrix(,ncol = 7)
+colnames(thickness) <- c("ROI", "tval.intercept", "pval.intercept", "fdr.intercept", "tval.thickness", "pval.thickness", "fdr.thickess")
+
+for(i in names(test.thickness[11:78])){
+  var <- paste(i)
+  glm <- summary(glm(test.thickness$CardSort_Unadj~test.thickness[[i]]+test.thickness$Gender+test.thickness$Age_in_Yrs))
+  tval.intercept <- glm$coefficients[1,3]
+  tval.thickness<- glm$coefficients[2,3]
+  pval.intercept <- glm$coefficients[1,4]
+  pval.thickness <- glm$coefficients[2,4]
+   fdr.intercept <- c(0)
+  fdr.thickness <- c(0)
+  thickness<- rbind(
+    thickness,
+    c(var,tval.intercept,
+      pval.intercept,
+      fdr.intercept, 
+      tval.thickness, 
+      pval.thickness, 
+      fdr.thickness))}
+
+thickness <-as.data.frame(thickness[2:69,1:7])
+fdr.intercept <- p.adjust((as.numeric(as.character(thickness[,3]))),method='fdr')
+fdr.thickness <- p.adjust((as.numeric(as.character(thickness[,6]))),method='fdr')
+
+thickness$`fdr.intercept` <- round (fdr.intercept,3)
+thickness$`fdr.thickness` <- round (fdr.thickness,3)
+
+CardSort_Unaj.thick <- thickness
+```
+```{r}
+thickness = matrix(,ncol = 7)
+colnames(thickness) <- c("ROI", "tval.intercept", "pval.intercept", "fdr.intercept", "tval.thickness", "pval.thickness", "fdr.thickess")
+
+for(i in names(test.thickness[11:78])){
+  var <- paste(i)
+  glm <- summary(glm(test.thickness$Sadness_Unadj~test.thickness[[i]]+test.thickness$Gender+test.thickness$Age_in_Yrs))
+  tval.intercept <- glm$coefficients[1,3]
+  tval.thickness<- glm$coefficients[2,3]
+  pval.intercept <- glm$coefficients[1,4]
+  pval.thickness <- glm$coefficients[2,4]
+   fdr.intercept <- c(0)
+  fdr.thickness <- c(0)
+  thickness<- rbind(
+    thickness,
+    c(var,tval.intercept,
+      pval.intercept,
+      fdr.intercept, 
+      tval.thickness, 
+      pval.thickness, 
+      fdr.thickness))}
+
+thickness <-as.data.frame(thickness[2:69,1:7])
+fdr.intercept <- p.adjust((as.numeric(as.character(thickness[,3]))),method='fdr')
+fdr.thickness <- p.adjust((as.numeric(as.character(thickness[,6]))),method='fdr')
+
+thickness$`fdr.intercept` <- round (fdr.intercept,3)
+thickness$`fdr.thickness` <- round (fdr.thickness,3)
+
+Sadness_Unaj.thick <- thickness
+```
+```{r}
+library(xlsx)
+write.xlsx(DSM_Dep_Raw.thick, file="predepressivesymptoms_Thickness.xlsx", sheetName="DSM_Dep_Raw.thick", row.names=FALSE)
+write.xlsx(DSM_Dep_T.thick, file="predepressivesymptoms_Thickness.xlsx", sheetName="DSM_Dep_T.thick", append=TRUE, row.names=FALSE)
+write.xlsx(CardSort_Unaj.thick, file="predepressivesymptoms_Thickness.xlsx", sheetName="CardSort_Unaj.thick", append=TRUE, row.names=FALSE)
+write.xlsx(Sadness_Unaj.thick, file="predepressivesymptoms_Thickness.xlsx", sheetName="Sadness_Unaj.thick", append=TRUE, row.names=FALSE)
+```

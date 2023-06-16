@@ -1,0 +1,231 @@
+---
+title: "Untitled"
+author: "Yuliya Zubak"
+date: "12/02/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(ggplot2)
+library(emmeans)
+
+setwd('/Users/Administrator/Desktop/R/YZ-20191122T154314Z-001/YZ') #move here so script works
+
+```
+#Loading
+```{r}
+HCP <- read.delim("HCP_sample_ref.txt", stringsAsFactors = FALSE)
+genetic1 <- read.csv("scores_frontal_cortex_predicted_expression.csv",header=T,stringsAsFactors=F, row.names = 1)
+imaging <- read.csv("unrestricted_amymiles_11_18_2019_13_10_13.csv",stringsAsFactors=FALSE)
+clinical <- read.csv("HCP_behavioral_data.csv",header=T,stringsAsFactors=F)
+family <- read.csv("HCP_subjects.csv",header=T,stringsAsFactors=F)
+genetic <- merge(HCP[,c(4,5)],genetic1,by.x='SAMPLE_ID', by.y='IID')
+colnames(genetic)[2] <- "SID"
+```
+
+```{r}
+data <- merge(genetic[,c(2,3,4)],clinical[,c(1,2,10,11,204)],by.x='SID',by.y='Subject')
+data <- merge(data,imaging,by.x='SID',by.y='Subject')
+data <- merge(family[1], data, by='SID')
+```
+
+##Independent Variable (X)- Gender
+
+```{r}
+sample <- data[,1:7]
+
+#sample <- subset(sample,Race=='White')
+#sample <- subset(sample,Ethnicity=='Not Hispanic/Latino')
+sample <- sample[,-c(5,6)]
+
+```
+##Moderating Variable (W)- Score
+
+```{r}
+
+volume <- data[,c(1,8,31:34,38,39,41,49:55)]
+test.volume <- merge(sample,volume,by='SID')
+thickness <- data[,c(1,8,71:138)]
+test.thickness <- merge(sample,thickness,by='SID')
+surfarea <- data[,c(1,8,139:206)]
+test.surfarea <- merge(sample,surfarea,by='SID')
+
+```
+
+#identifying all influential points with cooks distance 
+##relevel
+```{r}
+test.volume$Gender <- as.factor(test.volume$Gender)
+test.thickness$Gender <- as.factor(test.thickness$Gender)
+test.surfarea$Gender <- as.factor(test.surfarea$Gender)
+
+test.volume <- within(test.volume, Gender <- relevel(Gender, ref = 'M'))
+test.thickness <- within(test.thickness, Gender <- relevel(Gender, ref = 'M'))
+test.surfarea <- within(test.surfarea, Gender <- relevel(Gender, ref = 'M'))
+```
+only for female score/male data
+4```{r}
+influential <- c()
+for(i in names(test.volume[,7:20])){
+  cookd<-cooks.distance(glm(test.volume[[i]]~test.volume$female.weighted*test.volume$Gender+test.volume$Age_in_Yrs+test.volume$FS_IntraCranial_Vol))
+  #plot(cookd, main=i)
+   sample_size <- nrow(test.volume)
+  abline(h=4/sample_size, col="red")
+  abline(h=30/sample_size, col="blue")
+  influential <- append(influential, as.numeric(names(cookd)[(cookd > (30/sample_size))]))
+
+}
+influential <- influential[!duplicated(influential)]
+print(influential)
+
+4```
+
+```{r}
+for(i in names(test.thickness[,7:74])){
+  cookd<-cooks.distance(glm(test.thickness[[i]]~test.thickness$female.weighted*test.thickness$Gender+test.thickness$Age_in_Yrs+test.thickness$FS_IntraCranial_Vol))
+  plot(cookd,main=i)  
+  sample_size <- nrow(test.volume)
+  abline(h=4/sample_size, col="red")
+  abline(h=30/sample_size, col="blue")
+  influential <- append(influential, as.numeric(names(cookd)[(cookd > (30/sample_size))]))
+}
+
+influential <- influential[!duplicated(influential)]
+print(influential)
+
+```
+
+3```{r}
+
+for(i in names(test.surfarea[,7:74])){
+  cookd<-cooks.distance(glm(test.surfarea[[i]]~test.surfarea$female.weighted*test.surfarea$Gender+test.surfarea$Age_in_Yrs+test.surfarea$FS_IntraCranial_Vol))
+  #plot(cookd)
+  sample_size <- nrow(test.volume)
+  abline(h=4/sample_size, col="red")
+  abline(h=30/sample_size, col="blue")
+  influential <- append(influential, as.numeric(names(cookd)[(cookd > (30/sample_size))]))
+
+}
+
+influential <- influential[!duplicated(influential)]
+print(influential)
+r```
+
+```{r}
+
+#test.volume.cd <- test.volume[-influential,]
+#nrow(test.volume)
+#nrow(test.volume.cd)
+#test.surfarea.cd <- test.surfarea[-influential,]
+test.thickness.cd <- test.thickness[-influential,]
+```
+
+#```{r}
+for(i in names(test.surfarea.cd[,7:74])){
+  p <- 
+    ggplot(test.surfarea.cd, aes(x=female.weighted, y=get(i)))+geom_point()+geom_smooth(method = lm)  
+  print(p+ggtitle(i))
+}
+```
+
+#```{r}
+for(i in names(test.volume.cd[,7:20])){
+  p <- 
+    ggplot(test.volume.cd, aes(x=female.weighted, y=get(i)))+geom_point()+geom_smooth(method = lm)  
+  print(p+ggtitle(i))
+}
+```
+##set factor
+```{r}
+test.volume$Gender <- as.factor(test.volume$Gender)
+test.thickness$Gender <- as.factor(test.thickness$Gender)
+test.surfarea$Gender <- as.factor(test.surfarea$Gender)
+
+test.volume <- within(test.volume, Gender <- relevel(Gender, ref = 'M'))
+test.thickness <- within(test.thickness, Gender <- relevel(Gender, ref = 'M'))
+test.surfarea <- within(test.surfarea, Gender <- relevel(Gender, ref = 'M'))
+```
+
+```{r}
+thickness = matrix(,ncol = 10)
+colnames(thickness) <- c("ROI", "tval.male.weighted", "pval.male.weighted", "fdr.male.weighted", "tval.female.gender", "pval.female.gender", "fdr.female.gender", "tval.age", "pval.age", "fdr.age")
+
+for(i in names(test.thickness.cd[,7:74])){
+  var <- paste(i)
+  glm <- summary(glm(test.thickness.cd[[i]]~test.thickness.cd$female.weighted+test.thickness.cd$Gender+test.thickness.cd$Age_in_Yrs+test.thickness.cd$FS_IntraCranial_Vol))
+  tval.maleweighted <- glm$coefficients[2,3]
+  tval.male.gender <- glm$coefficients[3,3]
+  tval.age <- glm$coefficients[4,3]
+  #tval.intravol <- glm$coefficients[5,3]
+  pval.maleweighted <- glm$coefficients[2,4]
+  pval.male.gender <- glm$coefficients[3,4]
+  pval.age <- glm$coefficients[4,4]
+ #pval.intravol <- glm$coefficients[5,4]
+  fdr.maleunweighted <- c(0)
+  fdr.male.gender <- c(0)
+  fdr.age <- c(0)
+  thickness <- rbind(
+    thickness,
+    c(var,round(tval.maleweighted,3),
+      pval.maleweighted,
+      fdr.maleunweighted, 
+      round(tval.male.gender, 3), 
+      pval.male.gender, 
+      fdr.male.gender, round(tval.age, 3), 
+      pval.age, 
+      fdr.age))}
+
+thickness <-as.data.frame(thickness[2:69,1:10])
+fdr.w.thickness <- p.adjust((as.numeric(as.character(thickness[,3]))),method='fdr')
+fdr.wm.thickness <- p.adjust((as.numeric(as.character(thickness[,6]))),method='fdr')
+fdr.age<- p.adjust((as.numeric(as.character(thickness[,9]))),method='fdr')
+thickness$`fdr.male.weighted` <- round (fdr.w.thickness,3)
+thickness$`fdr.female.gender` <- round (fdr.wm.thickness,3)
+thickness$`fdr.age` <- round (fdr.age,3)
+
+
+x.thickness <- thickness
+library(xlsx)
+write.xlsx(x.thickness, file="dissapoint.xlsx", sheetName="thickness", row.names=FALSE)
+```
+
+```{r}
+for(i in names(test.thickness[,6:73])){
+  p <- 
+    ggplot(test.thickness.cd, aes(x=female.weighted, y=get(i)))+geom_point()+geom_smooth(method = lm)  
+  print(p+ggtitle(i))
+  
+}
+```
+#?FS_L_Isthmuscingulate
+```{r}
+  p <- 
+    ggplot(test.surfarea, aes(x=female.weighted, y=test.surfarea$FS_L_Isthmuscingulate_Area ))+geom_point()+geom_smooth(method = lm)  
+  print(p)
+  
+   q <- ggplot(test.thickness, aes(x=female.weighted, y=test.thickness$FS_L_Isthmuscingulate_Thck))+geom_point()+geom_smooth(method = lm)  
+  print(q)
+  
+#white.nonhispanic.sa <- rownames(subset(test.surfarea,FS_L_Isthmuscingulate_Area>=2000))
+#white.nonhispanic.thick <- rownames(subset(test.thickness,FS_L_Isthmuscingulate_Thck<=1.5))
+all.data.sa <- subset(test.surfarea,FS_L_Isthmuscingulate_Area>=2000)
+all.data.thick <- subset(test.thickness,FS_L_Isthmuscingulate_Thck<=1.5)
+rownames(subset(test.surfarea,FS_L_Isthmuscingulate_Area>=2000))
+rownames(subset(test.thickness,FS_L_Isthmuscingulate_Thck<=1.5))
+
+SID <- all.data.sa[1]
+Isth_info<-merge(SID,clinical,by.x='SID', by.y="Subject")
+
+library(xlsx) 
+write.xlsx(Isth_info, file="isth_group.xlsx", row.names=FALSE)
+
+```
+
+```{r}
+probe_interaction(glm,Isth_info$FS_L_Isthmuscingulate_Area, Isth_info)
+```

@@ -1,0 +1,191 @@
+---
+title: "Untitled"
+author: "Yuliya Zubak"
+date: "11/02/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(emmeans)
+
+setwd('/Users/Administrator/Desktop/R/YZ-20191122T154314Z-001/YZ') #move here so script works
+
+```
+#Loading
+```{r}
+HCP <- read.delim("HCP_sample_ref.txt", stringsAsFactors = FALSE)
+genetic1 <- read.csv("scores_frontal_cortex_predicted_expression.csv",header=T,stringsAsFactors=F, row.names = 1)
+imaging <- read.csv("unrestricted_amymiles_11_18_2019_13_10_13.csv",stringsAsFactors=FALSE)
+clinical <- read.csv("HCP_behavioral_data.csv",header=T,stringsAsFactors=F)
+family <- read.csv("HCP_subjects.csv",header=T,stringsAsFactors=F)
+
+genetic <- merge(HCP[,c(4,5)],genetic1,by.x='SAMPLE_ID', by.y='IID')
+colnames(genetic)[2] <- "SID"
+```
+
+```{r}
+
+data <- merge(genetic[,c(2,3,4)],clinical[,c(1,10,11,49,50,204)],by.x='SID',by.y='Subject')
+data <- merge(data,imaging,by.x='SID',by.y='Subject')
+data <- merge(family[1], data, by='SID')
+```
+##Independent Variable (X)- Gender
+
+```{r}
+regressors <- data[,1:8]
+
+Hist_sample <- subset(regressors,Race=='White')
+Hist_sample <- subset(Hist_sample,Ethnicity=='Not Hispanic/Latino')
+Hist_sample <- Hist_sample[,-c(4,5)]
+```
+
+#Mother_Depression 
+##male 
+```{r}
+
+Moth_Dep <- matrix(,ncol = 3)
+colnames(Moth_Dep)<- c("formula","t-val", "p-val")
+
+Hist_sample$Gender <- as.factor(Hist_sample$Gender)
+Hist_sample <- within(Hist_sample, Gender <- relevel(Gender, ref = 'M'))
+test <-summary(lm(data=Hist_sample,male.weighted~FamHist_Moth_Dep*Gender))
+
+Moth_Dep <- rbind(Moth_Dep, "male_weighted.moth_dep.M_factor_ref")
+Moth_Dep <- rbind(Moth_Dep, c('FamHist_Moth_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Moth_Dep <- rbind(Moth_Dep, c('GenderF', test$coefficients[3,3], test$coefficients[3,4]))
+Moth_Dep <- rbind(Moth_Dep, c('Fam_Hist_Moth_Dep:GenderF', test$coefficients[4,3], test$coefficients[4,4]))
+
+test <-summary(lm(data=Hist_sample,female.weighted~FamHist_Moth_Dep*Gender))
+#does female score differ by family history as a function of gender
+Moth_Dep <- rbind(Moth_Dep, "female_weighted.moth_dep.M_factor_ref")
+Moth_Dep <- rbind(Moth_Dep, c('FamHist_Moth_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Moth_Dep <- rbind(Moth_Dep, c('GenderF', test$coefficients[3,3], test$coefficients[3,4]))
+Moth_Dep <- rbind(Moth_Dep, c('Fam_Hist_Moth_Dep:GenderF', test$coefficients[4,3], test$coefficients[4,4]))
+```
+
+
+##female
+```{r}
+Hist_sample$Gender <- as.factor(Hist_sample$Gender)
+Hist_sample <- within(Hist_sample, Gender <- relevel(Gender, ref = 'F'))
+test <-summary(lm(data=Hist_sample,female.weighted~FamHist_Moth_Dep*Gender))
+
+Moth_Dep <- rbind(Moth_Dep, "female_weighted.moth_dep.F_factor_ref")
+Moth_Dep <- rbind(Moth_Dep, c('FamHist_Moth_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Moth_Dep <- rbind(Moth_Dep, c('Gender_M', test$coefficients[3,3], test$coefficients[3,4]))
+Moth_Dep <- rbind(Moth_Dep, c('Fam_Hist_Moth_Dep:GenderM', test$coefficients[4,3], test$coefficients[4,4]))
+
+test <-summary(lm(data=Hist_sample,male.weighted~FamHist_Moth_Dep*Gender))
+
+Moth_Dep <- rbind(Moth_Dep, "male_weighted.moth_dep.F_factor_ref")
+Moth_Dep <- rbind(Moth_Dep, c('FamHist_Moth_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Moth_Dep <- rbind(Moth_Dep, c('Gender_M', test$coefficients[3,3], test$coefficients[3,4]))
+Moth_Dep <- rbind(Moth_Dep, c('Fam_Hist_Moth_Dep:GenderM', test$coefficients[4,3], test$coefficients[4,4]))
+
+```
+
+
+#Father_Depression 
+##male
+```{r}
+Fath_Dep <- matrix(,ncol = 3)
+colnames(Fath_Dep)<- c("formula","t-val", "p-val")
+
+Hist_sample$Gender <- as.factor(Hist_sample$Gender)
+Hist_sample <- within(Hist_sample, Gender <- relevel(Gender, ref = 'M'))
+test <-summary(lm(data=Hist_sample,male.weighted~FamHist_Fath_Dep*Gender))
+
+Fath_Dep <- rbind(Fath_Dep, "male_weighted.Fath_Dep.M_factor_ref")
+Fath_Dep <- rbind(Fath_Dep, c('FamHist_Fath_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Fath_Dep <- rbind(Fath_Dep, c('GenderF', test$coefficients[3,3], test$coefficients[3,4]))
+Fath_Dep <- rbind(Fath_Dep, c('FamHist_Fath_Dep:GenderF', test$coefficients[4,3], test$coefficients[4,4]))
+
+test <-summary(lm(data=Hist_sample,female.weighted~FamHist_Fath_Dep*Gender))
+#does female score differ by family history as a function of gender
+Fath_Dep <- rbind(Fath_Dep, "female_weighted.Fath_Dep.M_factor_ref")
+Fath_Dep <- rbind(Fath_Dep, c('FamHist_Fath_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Fath_Dep <- rbind(Fath_Dep, c('GenderF', test$coefficients[3,3], test$coefficients[3,4]))
+Fath_Dep <- rbind(Fath_Dep, c('FamHist_Fath_Dep:GenderF', test$coefficients[4,3], test$coefficients[4,4]))
+```
+
+
+##female
+```{r}
+Hist_sample <- within(Hist_sample, Gender <- relevel(Gender, ref = 'F'))
+test <-summary(lm(data=Hist_sample,female.weighted~FamHist_Fath_Dep*Gender))
+
+Fath_Dep <- rbind(Fath_Dep, "female_weighted.Fath_Dep.F_factor_ref")
+Fath_Dep <- rbind(Fath_Dep, c('FamHist_Fath_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Fath_Dep <- rbind(Fath_Dep, c('Gender_M', test$coefficients[3,3], test$coefficients[3,4]))
+Fath_Dep <- rbind(Fath_Dep, c('FamHist_Fath_Dep:GenderM', test$coefficients[4,3], test$coefficients[4,4]))
+
+test <-summary(lm(data=Hist_sample,male.weighted~FamHist_Fath_Dep*Gender))
+
+Fath_Dep <- rbind(Fath_Dep, "male_weighted.Fath_Dep.F_factor_ref")
+Fath_Dep <- rbind(Fath_Dep, c('FamHist_Fath_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Fath_Dep <- rbind(Fath_Dep, c('Gender_M', test$coefficients[3,3], test$coefficients[3,4]))
+Fath_Dep <- rbind(Fath_Dep, c('FamHist_Fath_Dep:GenderM', test$coefficients[4,3], test$coefficients[4,4]))
+```
+
+#Making Parent
+```{r}
+Hist_sample$FamHist_Parent_Dep <-(Hist_sample$FamHist_Moth_Dep+Hist_sample$FamHist_Fath_Dep)
+Hist_sample[,7][Hist_sample[,7]==2] <- 1
+```
+
+#Parent PRS
+```{r}
+Parent_Dep <- matrix(,ncol = 3)
+colnames(Parent_Dep)<- c("formula","t-val", "p-val")
+```
+##male
+```{r}
+
+
+Hist_sample$Gender <- as.factor(Hist_sample$Gender)
+Hist_sample <- within(Hist_sample, Gender <- relevel(Gender, ref = 'M'))
+test <-summary(lm(data=Hist_sample,male.weighted~FamHist_Parent_Dep*Gender))
+
+Parent_Dep <- rbind(Parent_Dep, "male_weighted.Parent_Dep.M_factor_ref")
+Parent_Dep <- rbind(Parent_Dep, c('FamHist_Parent_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Parent_Dep <- rbind(Parent_Dep, c('GenderF', test$coefficients[3,3], test$coefficients[3,4]))
+Parent_Dep <- rbind(Parent_Dep, c('FamHist_Parent_Dep:GenderF', test$coefficients[4,3], test$coefficients[4,4]))
+
+test <-summary(lm(data=Hist_sample,female.weighted~FamHist_Parent_Dep*Gender))
+#does female score differ by family history as a function of gender
+Parent_Dep <- rbind(Parent_Dep, "female_weighted.Parent_Dep.M_factor_ref")
+Parent_Dep <- rbind(Parent_Dep, c('FamHist_Parent_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Parent_Dep <- rbind(Parent_Dep, c('GenderF', test$coefficients[3,3], test$coefficients[3,4]))
+Parent_Dep <- rbind(Parent_Dep, c('FamHist_Parent_Dep:GenderF', test$coefficients[4,3], test$coefficients[4,4]))
+```
+
+
+##female
+```{r}
+Hist_sample <- within(Hist_sample, Gender <- relevel(Gender, ref = 'F'))
+test <-summary(lm(data=Hist_sample,female.weighted~FamHist_Parent_Dep*Gender))
+
+Parent_Dep <- rbind(Parent_Dep, "female_weighted.Parent_Dep.F_factor_ref")
+Parent_Dep <- rbind(Parent_Dep, c('FamHist_Parent_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Parent_Dep <- rbind(Parent_Dep, c('Gender_M', test$coefficients[3,3], test$coefficients[3,4]))
+Parent_Dep <- rbind(Parent_Dep, c('FamHist_Parent_Dep:GenderM', test$coefficients[4,3], test$coefficients[4,4]))
+
+test <-summary(lm(data=Hist_sample,male.weighted~FamHist_Parent_Dep*Gender))
+
+Parent_Dep <- rbind(Parent_Dep, "male_weighted.Parent_Dep.F_factor_ref")
+Parent_Dep <- rbind(Parent_Dep, c('FamHist_Parent_Dep', test$coefficients[2,3], test$coefficients[2,4]))
+Parent_Dep <- rbind(Parent_Dep, c('Gender_M', test$coefficients[3,3], test$coefficients[3,4]))
+Parent_Dep <- rbind(Parent_Dep, c('FamHist_Parent_Dep:GenderM', test$coefficients[4,3], test$coefficients[4,4]))
+```
+
+```{r}
+library(xlsx) 
+write.xlsx(Moth_Dep, file="Familial_Dep.xlsx", sheetName="Moth_Dep", row.names=FALSE)
+write.xlsx(Fath_Dep, file="Familial_Dep.xlsx", sheetName="Fath_Dep", append=TRUE, row.names=FALSE)
+write.xlsx(Parent_Dep, file="Familial_Dep.xlsx", sheetName="Parent_Dep", append=TRUE, row.names=FALSE)
+```

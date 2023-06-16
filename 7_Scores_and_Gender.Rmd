@@ -1,0 +1,344 @@
+---
+title: "7_Scores_and_Gender"
+author: "Yuliya Zubak"
+date: "20/02/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(emmeans)
+
+setwd('/Users/Administrator/Desktop/R/YZ-20191122T154314Z-001/YZ') #move here so script works
+
+```
+#Loading
+```{r}
+HCP <- read.delim("HCP_sample_ref.txt", stringsAsFactors = FALSE)
+genetic1 <- read.csv("scores_frontal_cortex_predicted_expression.csv",header=T,stringsAsFactors=F, row.names = 1)
+imaging <- read.csv("unrestricted_amymiles_11_18_2019_13_10_13.csv",stringsAsFactors=FALSE)
+clinical <- read.csv("HCP_behavioral_data.csv",header=T,stringsAsFactors=F)
+family <- read.csv("HCP_subjects.csv",header=T,stringsAsFactors=F)
+
+genetic <- merge(HCP[,c(4,5)],genetic1,by.x='SAMPLE_ID', by.y='IID')
+colnames(genetic)[2] <- "SID"
+```
+
+```{r}
+data <- merge(genetic[,c(2,3,4)],clinical[,c(1,2,10,11,49,50,204)],by.x='SID',by.y='Subject')
+data <- merge(data,imaging,by.x='SID',by.y='Subject')
+data <- merge(family[1], data, by='SID')
+```
+##Independent Variable (X)- Gender
+
+```{r}
+regressors <- data[,1:9]
+
+sample <- subset(regressors,Race=='White')
+sample <- subset(sample,Ethnicity=='Not Hispanic/Latino')
+sample <- sample[,-c(5,6,7,8)]
+```
+#scaling scores
+```{r}
+scaled_scores <- sample[,c(1:3,5)]
+scaled_scores$male.weighted.scaled <- scale(scaled_scores$male.weighted)
+scaled_scores$female.weighted.scaled <- scale(scaled_scores$female.weighted)
+```
+
+```{r}
+volume <- data[,c(1,4,10,31:34,38,39,41,49:55)]
+test.volume <- merge(scaled_scores,volume,by='SID')
+thickness <- data[,c(1,4,10,71:138)]
+test.thickness <- merge(scaled_scores,thickness,by='SID')
+surfarea <- data[,c(1,4,10,139:206)]
+test.surfarea <- merge(scaled_scores,surfarea,by='SID')
+```
+
+
+#SCORE x MALE DATA (M=0)
+##relevel
+```{r}
+test.volume$Gender <- as.factor(test.volume$Gender)
+test.thickness$Gender <- as.factor(test.thickness$Gender)
+test.surfarea$Gender <- as.factor(test.surfarea$Gender)
+
+test.volume <- within(test.volume, Gender <- relevel(Gender, ref = 'F'))
+test.thickness <- within(test.thickness, Gender <- relevel(Gender, ref = 'F'))
+test.surfarea <- within(test.surfarea, Gender <- relevel(Gender, ref = 'F'))
+```
+##volume
+```{r}
+volume = matrix(,ncol = 10)
+colnames(volume) <- c("ROI", "tval.male.weighted", "pval.male.weighted", "fdr.male.weighted", "tval.female.weighted", "pval.female.weighted", "fdr.female.weighted", "tval.genderF", "pval.genderF", "fdr.GenderF")
+
+for(i in names(test.volume[,9:22])){
+  var <- paste(i)
+  glm <- summary(glm(test.volume[[i]]~test.volume$male.weighted.scaled+test.volume$female.weighted.scaled +test.volume$Gender+test.volume$Age_in_Yrs))
+  tval.male.weighted <- glm$coefficients[2,3]
+  tval.female.weighted <- glm$coefficients[3,3]
+  tval.gender <-glm$coefficients[4,3]
+  pval.male.weighted <- glm$coefficients[2,4]
+  pval.female.weighted <- glm$coefficients[3,4]
+  pval.gender <-glm$coefficients[4,4]
+  fdr.male.weighted <- c(0)
+  fdr.female.weighted <- c(0)
+  fdr.gender <- c(0)
+  volume <- rbind(
+    volume,
+    c(var,round(tval.male.weighted,3),
+      pval.male.weighted,
+      fdr.male.weighted, 
+      round(tval.female.weighted, 3), 
+      pval.female.weighted, 
+      fdr.female.weighted,
+      round(tval.gender, 3), 
+      pval.gender, 
+      fdr.gender))}
+
+volume <-as.data.frame(volume[2:15,1:10])
+fdr.w.volume <- p.adjust((as.numeric(as.character(volume[,3]))),method='fdr')
+fdr.wm.volume <- p.adjust((as.numeric(as.character(volume[,6]))),method='fdr')
+fdr.mf.volume <- p.adjust((as.numeric(as.character(volume[,9]))),method='fdr')
+volume$`fdr.male.weighted` <- round (fdr.w.volume,3)
+volume$`fdr.female.weighted` <- round (fdr.wm.volume,3)
+volume$`fdr.GenderF` <- round (fdr.mf.volume,3)
+
+m.s.m.d.volume <- volume
+```
+
+##thickness
+```{r}
+thickness = matrix(,ncol = 10)
+colnames(thickness) <- c("ROI", "tval.male.weighted", "pval.male.weighted", "fdr.male.weighted", "tval.female.weighted", "pval.female.weighted", "fdr.female.weighted", "tval.genderF", "pval.genderF", "fdr.GenderF")
+
+for(i in names(test.thickness[7:74])){
+  var <- paste(i)
+  glm <- summary(glm(test.thickness[[i]]~test.thickness$male.weighted.scaled+test.thickness$female.weighted.scaled +test.thickness$Gender+test.thickness$Age_in_Yrs))
+  tval.male.weighted <- glm$coefficients[2,3]
+  tval.female.weighted <- glm$coefficients[3,3]
+  tval.genderF<-glm$coefficients[4,3]
+  pval.male.weighted <- glm$coefficients[2,4]
+  pval.female.weighted <- glm$coefficients[3,4]
+  pval.genderF <-glm$coefficients[4,4]
+  fdr.male.weighted <- c(0)
+  fdr.female.weighted <- c(0)
+  fdr.genderF<- c(0)
+  thickness<- rbind(
+    thickness,
+    c(var,round(tval.male.weighted,3),
+      pval.male.weighted,
+      fdr.male.weighted, 
+      round(tval.female.weighted, 3), 
+      pval.female.weighted, 
+      fdr.female.weighted,
+      round(tval.genderF, 3), 
+      pval.genderF, 
+      fdr.genderF))}
+
+thickness <-as.data.frame(thickness[2:69,1:10])
+fdr.w.volume <- p.adjust((as.numeric(as.character(thickness[,3]))),method='fdr')
+fdr.wm.volume <- p.adjust((as.numeric(as.character(thickness[,6]))),method='fdr')
+fdr.mf.volume <- p.adjust((as.numeric(as.character(thickness[,9]))),method='fdr')
+thickness$`fdr.male.weighted` <- round (fdr.w.volume,3)
+thickness$`fdr.female.weighted` <- round (fdr.wm.volume,3)
+thickness$`fdr.genderF` <- round (fdr.mf.volume,3)
+
+m.s.m.d.thickness <- thickness
+```
+
+##surface area
+```{r}
+
+surfarea = matrix(,ncol = 10)
+colnames(surfarea) <- c("ROI", "tval.male.weighted", "pval.male.weighted", "fdr.male.weighted", "tval.female.weighted", "pval.female.weighted", "fdr.female.weighted", "tval.genderF", "pval.genderF", "fdr.GenderF")
+
+for(i in names(test.surfarea[7:74])){
+  var <- paste(i)
+  glm <- summary(glm(test.surfarea[[i]]~test.surfarea$male.weighted.scaled+test.surfarea$female.weighted.scaled +test.surfarea$Gender+test.surfarea$Age_in_Yrs))
+  tval.male.weighted <- glm$coefficients[2,3]
+  tval.female.weighted <- glm$coefficients[3,3]
+  tval.genderF <-glm$coefficients[4,3]
+  pval.male.weighted <- glm$coefficients[2,4]
+  pval.female.weighted <- glm$coefficients[3,4]
+  pval.genderF <-glm$coefficients[4,4]
+  fdr.male.weighted <- c(0)
+  fdr.female.weighted <- c(0)
+  fdr.genderF <- c(0)
+  surfarea<- rbind(
+    surfarea,
+    c(var,round(tval.male.weighted,3),
+      pval.male.weighted,
+      fdr.male.weighted, 
+      round(tval.female.weighted, 3), 
+      pval.female.weighted, 
+      fdr.female.weighted,
+      round(tval.genderF, 3), 
+      pval.genderF, 
+      fdr.genderF))}
+
+surfarea <-as.data.frame(surfarea[2:69,1:10])
+fdr.w.surfarea <- p.adjust((as.numeric(as.character(surfarea[,3]))),method='fdr')
+fdr.wm.surfarea <- p.adjust((as.numeric(as.character(surfarea[,6]))),method='fdr')
+fdr.mf.surfarea <- p.adjust((as.numeric(as.character(surfarea[,9]))),method='fdr')
+surfarea$`fdr.male.weighted` <- round (fdr.w.surfarea,3)
+surfarea$`fdr.female.weighted` <- round (fdr.wm.surfarea,3)
+surfarea$`fdr.genderF` <- round (fdr.mf.surfarea,3)
+
+
+m.s.m.d.surfarea <- surfarea
+```
+
+##write to excel
+```{r}
+library(xlsx) #issues with java not being found -> install 64 bit verison of java and set home for java
+write.xlsx(m.s.m.d.thickness, file="ScorePlusScorePlusGenderMaleData.xlsx", sheetName="thickness", row.names=FALSE)
+write.xlsx(m.s.m.d.volume, file="ScorePlusScorePlusGenderMaleData.xlsx", sheetName="volume", append=TRUE, row.names=FALSE)
+write.xlsx(m.s.m.d.surfarea, file="ScorePlusScorePlusGenderMaleData.xlsx", sheetName="surfarea", append=TRUE, row.names=FALSE)
+```
+
+
+#SCORE x FEMALE DATA (F=0)
+##relevel
+```{r}
+test.volume$Gender <- as.factor(test.volume$Gender)
+test.thickness$Gender <- as.factor(test.thickness$Gender)
+test.surfarea$Gender <- as.factor(test.surfarea$Gender)
+
+test.volume <- within(test.volume, Gender <- relevel(Gender, ref = 'F'))
+test.thickness <- within(test.thickness, Gender <- relevel(Gender, ref = 'F'))
+test.surfarea <- within(test.surfarea, Gender <- relevel(Gender, ref = 'F'))
+```
+
+##volume
+```{r}
+volume = matrix(,ncol = 10)
+colnames(volume) <- c("ROI", "tval.male.weighted", "pval.male.weighted", "fdr.male.weighted", "tval.female.weighted", "pval.female.weighted", "fdr.female.weighted", "tval.GenderM", "pval.GenderM", "fdr.GenderM")
+
+for(i in names(test.volume[,9:22])){
+  var <- paste(i)
+  glm <- summary(glm(test.volume[[i]]~test.volume$male.weighted.scaled+test.volume$female.weighted.scaled +test.volume$Gender+test.volume$Age_in_Yrs))
+  tval.male.weighted <- glm$coefficients[2,3]
+  tval.female.weighted <- glm$coefficients[3,3]
+  tval.genderM <-glm$coefficients[4,3]
+  pval.male.weighted <- glm$coefficients[2,4]
+  pval.female.weighted <- glm$coefficients[3,4]
+  pval.genderM <-glm$coefficients[4,4]
+  fdr.male.weighted <- c(0)
+  fdr.female.weighted <- c(0)
+  fdr.genderM <- c(0)
+  volume <- rbind(
+    volume,
+    c(var,round(tval.male.weighted,3),
+      pval.male.weighted,
+      fdr.male.weighted, 
+      round(tval.female.weighted, 3), 
+      pval.female.weighted, 
+      fdr.female.weighted,
+      round(tval.genderM, 3), 
+      pval.genderM, 
+      fdr.genderM))}
+
+volume <-as.data.frame(volume[2:15,1:10])
+fdr.w.volume <- p.adjust((as.numeric(as.character(volume[,3]))),method='fdr')
+fdr.wm.volume <- p.adjust((as.numeric(as.character(volume[,6]))),method='fdr')
+fdr.mf.volume <- p.adjust((as.numeric(as.character(volume[,9]))),method='fdr')
+volume$`fdr.male.weighted` <- round (fdr.w.volume,3)
+volume$`fdr.female.weighted` <- round (fdr.wm.volume,3)
+volume$`fdr.GenderM` <- round (fdr.mf.volume,3)
+
+
+m.s.f.d.volume <- volume
+```
+##thickness
+```{r}
+thickness = matrix(,ncol = 10)
+colnames(thickness) <- c("ROI", "tval.male.weighted", "pval.male.weighted", "fdr.male.weighted", "tval.female.weighted", "pval.female.weighted", "fdr.female.weighted", "tval.GenderM", "pval.GenderM", "fdr.GenderM")
+
+for(i in names(test.thickness[7:74])){
+  var <- paste(i)
+  glm <- summary(glm(test.thickness[[i]]~test.thickness$male.weighted.scaled+test.thickness$female.weighted.scaled +test.thickness$Gender+test.thickness$Age_in_Yrs))
+  tval.male.weighted <- glm$coefficients[2,3]
+  tval.female.weighted <- glm$coefficients[3,3]
+  tval.GenderM <-glm$coefficients[4,3]
+  pval.male.weighted <- glm$coefficients[2,4]
+  pval.female.weighted <- glm$coefficients[3,4]
+  pval.GenderM <-glm$coefficients[4,4]
+  fdr.male.weighted <- c(0)
+  fdr.female.weighted <- c(0)
+  fdr.GenderM <- c(0)
+  thickness<- rbind(
+    thickness,
+    c(var,round(tval.male.weighted,3),
+      pval.male.weighted,
+      fdr.male.weighted, 
+      round(tval.female.weighted, 3), 
+      pval.female.weighted, 
+      fdr.female.weighted,
+      round(tval.GenderM, 3), 
+      pval.GenderM, 
+      fdr.GenderM))}
+
+thickness <-as.data.frame(thickness[2:69,1:10])
+fdr.w.volume <- p.adjust((as.numeric(as.character(thickness[,3]))),method='fdr')
+fdr.wm.volume <- p.adjust((as.numeric(as.character(thickness[,6]))),method='fdr')
+fdr.mf.volume <- p.adjust((as.numeric(as.character(thickness[,9]))),method='fdr')
+thickness$`fdr.male.weighted` <- round (fdr.w.volume,3)
+thickness$`fdr.female.weighted` <- round (fdr.wm.volume,3)
+thickness$`fdr.GenderM` <- round (fdr.mf.volume,3)
+
+
+m.s.f.d.thickness <- thickness
+```
+##surfarea
+```{r}
+
+surfarea = matrix(,ncol = 10)
+colnames(surfarea) <- c("ROI", "tval.male.weighted", "pval.male.weighted", "fdr.male.weighted", "tval.female.weighted", "pval.female.weighted", "fdr.female.weighted", "tval.GenderM", "pval.GenderM", "fdr.GenderM")
+
+for(i in names(test.surfarea[7:74])){
+  var <- paste(i)
+  glm <- summary(glm(test.surfarea[[i]]~test.surfarea$male.weighted.scaled+test.surfarea$female.weighted.scaled +test.surfarea$Gender+test.surfarea$Age_in_Yrs))
+  tval.male.weighted <- glm$coefficients[2,3]
+  tval.female.weighted <- glm$coefficients[3,3]
+  tval.GenderM <-glm$coefficients[4,3]
+  pval.male.weighted <- glm$coefficients[2,4]
+  pval.female.weighted <- glm$coefficients[3,4]
+  pval.GenderM <-glm$coefficients[4,4]
+  fdr.male.weighted <- c(0)
+  fdr.female.weighted <- c(0)
+  fdr.GenderM <- c(0)
+  surfarea<- rbind(
+    surfarea,
+    c(var,round(tval.male.weighted,3),
+      pval.male.weighted,
+      fdr.male.weighted, 
+      round(tval.female.weighted, 3), 
+      pval.female.weighted, 
+      fdr.female.weighted,
+      round(tval.GenderM, 3), 
+      pval.GenderM, 
+      fdr.GenderM))}
+
+surfarea <-as.data.frame(surfarea[2:69,1:10])
+fdr.w.surfarea <- p.adjust((as.numeric(as.character(surfarea[,3]))),method='fdr')
+fdr.wm.surfarea <- p.adjust((as.numeric(as.character(surfarea[,6]))),method='fdr')
+fdr.mf.surfarea <- p.adjust((as.numeric(as.character(surfarea[,9]))),method='fdr')
+surfarea$`fdr.male.weighted` <- round (fdr.w.surfarea,3)
+surfarea$`fdr.female.weighted` <- round (fdr.wm.surfarea,3)
+surfarea$`fdr.GenderM` <- round (fdr.mf.surfarea,3)
+
+
+m.s.f.d.surfarea <- surfarea
+
+```
+##write to excel
+```{r}
+library(xlsx)
+write.xlsx(m.s.f.d.thickness, file="ScorePlusScorePlusGenderFemaleData.xlsx", sheetName="thickness", row.names=FALSE)
+write.xlsx(m.s.f.d.volume, file="ScorePlusScorePlusGenderFemaleData.xlsx", sheetName="volume", append=TRUE, row.names=FALSE)
+write.xlsx(m.s.f.d.surfarea, file="ScorePlusScorePlusGenderFemaleData.xlsx", sheetName="surfarea", append=TRUE, row.names=FALSE)
+```

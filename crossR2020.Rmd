@@ -1,0 +1,127 @@
+---
+title: "scrap"
+author: "Yuliya Zubak"
+date: "16/12/2019"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#cook's distance
+```{r}
+
+for(i in names(test.volume[,7:20])){
+  cookd<-cooks.distance(glm(test.volume[[i]]~test.volume$male.weighted*test.volume$Gender+test.volume$Age_in_Yrs+test.volume$FS_IntraCranial_Vol))
+  plot(cookd)
+}
+for(i in names(test.thickness[,6:73])){
+  cookd<-cooks.distance(glm(test.thickness[[i]]~test.thickness$female.weighted*test.thickness$Gender+test.thickness$Age_in_Yrs+test.thickness$FS_IntraCranial_Vol))
+  plot(cookd)
+}
+for(i in names(test.surfarea[,6:73])){
+  cookd<-cooks.distance(glm(test.surfarea[[i]]~test.surfarea$female.weighted*test.surfarea$Gender+test.surfarea$Age_in_Yrs+test.surfarea$FS_IntraCranial_Vol))
+  plot(cookd)
+}
+```
+
+```{r}
+sample_size <-nrow(test.volume$FS_L_ThalamusProper_Vol)
+cookd<-cooks.distance(glm(test.volume$FS_L_ThalamusProper_Vol~test.volume$male.weighted*test.volume$Gender+test.volume$Age_in_Yrs+test.volume$FS_IntraCranial_Vol))
+plot(cookd)
+  abline(h=0.04, col="red")
+  
+influential <- as.numeric(names(cookd)[(cookd > (0.04))])
+thalamus_screen<-test.volume[-influential,]
+ggplot(data=thalamus_screen, aes(x=female.weighted, y=FS_L_ThalamusProper_Vol))+ geom_point() + 
+        geom_smooth(method = lm)
+
+```
+##set factor
+```{r}
+test.volume$Gender <- as.factor(test.volume$Gender)
+test.thickness$Gender <- as.factor(test.thickness$Gender)
+test.surfarea$Gender <- as.factor(test.surfarea$Gender)
+
+test.volume <- within(test.volume, Gender <- relevel(Gender, ref = 'F'))
+test.thickness <- within(test.thickness, Gender <- relevel(Gender, ref = 'F'))
+test.surfarea <- within(test.surfarea, Gender <- relevel(Gender, ref = 'F'))
+```
+##Dependant Variable (Y)- Thickness, SA, Volume
+
+Y = b0+b2W+(b1 +b3W)X
+lm (X, Y)
+lm (Gender, Vol/thickness etc)
+lm (dependant ~ interacting variable)
+
+#MALE SCORE x MALE DATA (F=0)
+
+##volume
+```{r}
+volume = matrix(,ncol = 7)
+colnames(volume) <- c("ROI", "tval.maleWeighted", "pval.maleWeighted", "fdr.maleWeighted", "tval.maleWeighed*Gender", "pval.maleWeighted*Gender", "fdr.maleWeighted*Gender")
+
+for(i in names(test.volume[,7:20])){
+  var <- paste(i)
+  glm <- summary(glm(test.volume[[i]]~test.volume$male.weighted*test.volume$Gender+test.volume$Age_in_Yrs+test.volume$FS_IntraCranial_Vol))
+  tval.maleunweighted <- glm$coefficients[2,3]
+  tval.male.gender <- glm$coefficients[6,3]
+  pval.maleunweighted <- glm$coefficients[2,4]
+  pval.male.gender <- glm$coefficients[6,4]
+  fdr.maleunweighted <- c(0)
+  fdr.male.gender <- c(0)
+  volume <- rbind(
+    volume,
+    c(var,round(tval.maleunweighted,3),
+      pval.maleunweighted,
+      fdr.maleunweighted, 
+      round(tval.male.gender, 3), 
+      pval.male.gender, 
+      fdr.male.gender))}
+
+volume <-as.data.frame(volume[2:15,1:7])
+fdr.w.volume <- p.adjust((as.numeric(as.character(volume[,3]))),method='fdr')
+fdr.wm.volume <- p.adjust((as.numeric(as.character(volume[,6]))),method='fdr')
+volume$fdr.maleWeighted <- round (fdr.w.volume,3)
+volume$`fdr.maleWeighted*Gender` <- round (fdr.wm.volume,3)
+
+
+m.s.m.d.volume <- volume
+```
+
+
+##thickness
+```{r}
+thickness = matrix(,ncol = 7)
+colnames(thickness) <- c("ROI", "tval.maleWeighted", "pval.maleWeighted", "fdr.maleWeighted", "tval.maleWeighed*Gender", "pval.maleWeighted*Gender", "fdr.maleWeighted*Gender")
+
+for(i in names(test.thickness[6:73])){
+  var <- paste(i)
+  glm <- summary(glm(test.thickness[[i]]~test.thickness$male.weighted*test.thickness$Gender+test.thickness$Age_in_Yrs+test.thickness$FS_IntraCranial_Vol))
+  tval.maleunweighted <- glm$coefficients[2,3]
+  tval.male.gender <- glm$coefficients[6,3]
+  pval.maleunweighted <- glm$coefficients[2,4]
+  pval.male.gender <- glm$coefficients[6,4]
+  fdr.maleunweighted <- round(p.adjust(pval.maleunweighted,method='fdr'),3)
+  fdr.male.gender <- round(p.adjust(pval.male.gender,method='fdr'),3)
+   thickness <- rbind(
+    thickness,
+    c(var,round(tval.maleunweighted,3),
+      pval.maleunweighted,
+      fdr.maleunweighted, 
+      round(tval.male.gender, 3), 
+      pval.male.gender, 
+      fdr.male.gender))}
+
+thickness <-as.data.frame(thickness[3:69,1:7])
+fdr.w.thickness <- p.adjust((as.numeric(as.character(thickness[,3]))),method='fdr')
+fdr.wm.thickness <- p.adjust((as.numeric(as.character(thickness[,6]))),method='fdr')
+thickness$fdr.maleWeighted <- round (fdr.w.thickness,3)
+thickness$`fdr.maleWeighted*Gender` <- round (fdr.wm.thickness,3)
+
+
+m.s.m.d.thickness <- thickness
+```
